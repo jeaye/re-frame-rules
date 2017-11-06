@@ -1,4 +1,4 @@
-(defproject re-frame-rules "0.1.0"
+(defproject com.jeaye/re-frame-rules "0.1.0"
   :description ""
   :url "https://github.com/jeaye/re-frame-rules"
   :license {:name "jank license"
