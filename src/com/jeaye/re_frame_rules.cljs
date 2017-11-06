@@ -97,7 +97,6 @@
   "Given a flow definition, returns an event handler which implements this definition"
   [{:keys [id rules]}]
   (let [rules (massage-rules id rules)] ;; all of the events refered to in the rules
-
     ;; Return an event handler which will manage the flow.
     ;; This event handler will receive 3 kinds of events:
     ;; (dispatch [:id ::setup])
@@ -105,10 +104,7 @@
     ;;
     ;; This event handler returns a map of effects - it expects to be registered using
     ;; reg-event-fx
-    ;;
-    (fn async-flow-event-hander
-      [{:keys [db]} [_ event-type :as event-v]]
-
+    (fn async-flow-event-hander [{:keys [db]} [_ event-type :as event-v]]
       (condp = event-type
         ;; Setup this flow coordinator:
         ;; 1. Arrange for the events to be forwarded to this handler
