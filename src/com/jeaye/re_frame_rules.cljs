@@ -60,7 +60,8 @@
              ((::when task) (::events task) seen-event))
            rules))
 
-(def map-when->fn {:seen? seen-any?})
+(def map-when->fn {:seen? seen-any?
+                   :seen-any? seen-any?})
 
 (defn when->fn
   [when-kw]
