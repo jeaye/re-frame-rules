@@ -20,8 +20,8 @@
                                 " isn't an event predicate")
                            {:callback-pred callback-pred})))))
 
-(defn process-1 [{:as m
-                  :keys [unregister register events dispatch-to]}]
+(defn process-event [{:as m
+                      :keys [unregister register events dispatch-to]}]
   (let [_ (assert (map? m)
                   (str "re-frame: effects handler for :forward-events expected a map or a list of maps. Got: " m))
         _ (assert (or (= #{::unregister} (-> m keys set))
@@ -40,9 +40,9 @@
   ::forward-events
   (fn [val]
     (cond
-      (map? val) (process-1 val)
+      (map? val) (process-event val)
       (sequential? val) (doseq [v val]
-                          (process-1 v))
+                          (process-event v))
       :else (re-frame/console :error
                               "::forward-events expected a map or a list of maps, but got: "
                               val))))
@@ -69,10 +69,10 @@
     when-fn
     (re-frame/console :error "async-flow: got bad value for :when - " when-kw)))
 
-(defn massage-1 [index {:as rule
-                        :keys [id when events dispatch dispatch-n halt?]}]
+(defn massage-rule [index {:as rule
+                           :keys [id when events dispatch dispatch-n unbind?]}]
   {::id (or id (str flow-id "#" index))
-   ::halt? (or halt? false)
+   ::unbind? (or unbind? false)
    ::when (when->fn when)
    ::events (if (coll? events)
               (set events)
@@ -92,7 +92,7 @@
    - ensure that only `:dispatch` or `:dispatch-n` is provided
    - add a unique :id, if one not already present"
   [flow-id rules]
-  (map-indexed massage-1 rules))
+  (map-indexed massage-rule rules))
 
 (defn make-flow-event-handler
   "Given a flow definition, returns an event handler which implements this definition"
@@ -119,12 +119,12 @@
         ;; 1. Does this new event mean we should dispatch another?
         (let [[_ forwarded-event] event-v
               matched-rules (match-rules rules forwarded-event)
-              halt? (some ::halt? matched-rules)
+              unbind? (some ::unbind? matched-rules)
               new-dispatches (mapcat ::dispatch-n matched-rules)]
           (merge {}
                  (when (seq new-dispatches)
                    {:dispatch-n new-dispatches})
-                 (when halt?
+                 (when unbind?
                    ;; Teardown this flow coordinator:
                    ;; 1. Remove this event handler
                    ;; 2. Deregister the events forwarder
