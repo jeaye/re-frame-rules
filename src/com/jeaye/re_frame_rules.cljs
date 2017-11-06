@@ -49,12 +49,12 @@
 
 (defn seen-any?
   [required-events seen-event]
-  (let [callback-preds (map as-callback-pred required-events)]
+  (let [callback-preds (map event->callback-pred required-events)]
     (->> (some (fn [pred] (pred seen-event))
                callback-preds)
          some?)))
 
-(defn matched-rules
+(defn match-rules
   [rules seen-event]
   (filterv (fn [task]
              ((::when task) (::events task) seen-event))
@@ -69,8 +69,10 @@
     when-fn
     (re-frame/console :error "async-flow: got bad value for :when - " when-kw)))
 
-(defn massage-rule [index {:as rule
-                           :keys [id when events dispatch dispatch-n unbind?]}]
+(defn massage-rule [flow-id index {:keys [id when events
+                                          dispatch dispatch-n
+                                          unbind?]
+                                   :as rule}]
   {::id (or id (str flow-id "#" index))
    ::unbind? (or unbind? false)
    ::when (when->fn when)
@@ -92,7 +94,7 @@
    - ensure that only `:dispatch` or `:dispatch-n` is provided
    - add a unique :id, if one not already present"
   [flow-id rules]
-  (map-indexed massage-rule rules))
+  (map-indexed #(massage-rule flow-id %1 %2) rules))
 
 (defn make-flow-event-handler
   "Given a flow definition, returns an event handler which implements this definition"
@@ -123,6 +125,7 @@
               new-dispatches (mapcat ::dispatch-n matched-rules)]
           (merge {}
                  (when (seq new-dispatches)
+                   (println "dispatching" new-dispatches)
                    {:dispatch-n new-dispatches})
                  (when unbind?
                    ;; Teardown this flow coordinator:
