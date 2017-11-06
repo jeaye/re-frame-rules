@@ -5,7 +5,7 @@
             :url "https://upload.jeaye.com/jank-license"}
   :dependencies [[org.clojure/clojure "1.9.0-beta2"]
                  [org.clojure/clojurescript "1.9.946"]
-                 [re-frame "0.10.1"]]
+                 [re-frame "0.10.2"]]
 
   :source-paths ["src"]
   :test-paths ["test"])
