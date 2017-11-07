@@ -66,7 +66,7 @@
   [when-kw]
   (if-let [when-fn (map-when->fn when-kw)]
     when-fn
-    (re-frame/console :error "async-flow: got bad value for :when - " when-kw)))
+    (re-frame/console :error "re-frame-rules: got bad value for :when - " when-kw)))
 
 (defn get-dispatch-n [dispatch dispatch-n]
   (cond
@@ -97,7 +97,7 @@
   [flow-id rules]
   (map-indexed #(massage-rule flow-id %1 %2) rules))
 
-(defn make-flow-event-handler
+(defn make-rules-event-handler
   "Given a flow definition, returns an event handler which implements this definition"
   [{:keys [id rules first-dispatch first-dispatch-n]}]
   (let [rules (massage-rules id rules)] ;; all of the events refered to in the rules
@@ -108,7 +108,7 @@
     ;;
     ;; This event handler returns a map of effects - it expects to be registered using
     ;; reg-event-fx
-    (fn async-flow-event-hander [{:keys [db]} [_ event-type :as event-v]]
+    (fn re-frame-rules-event-hander [{:keys [db]} [_ event-type :as event-v]]
       (condp = event-type
         ;; Setup this flow coordinator:
         ;; 1. Arrange for the events to be forwarded to this handler
@@ -150,5 +150,5 @@
   ::bind
   (fn [flow]
     (let [[id flow'] (ensure-has-id flow)]
-      (re-frame/reg-event-fx id (make-flow-event-handler flow'))
+      (re-frame/reg-event-fx id (make-rules-event-handler flow'))
       (re-frame/dispatch [id ::setup]))))
