@@ -68,6 +68,15 @@
     when-fn
     (re-frame/console :error "async-flow: got bad value for :when - " when-kw)))
 
+(defn get-dispatch-n [dispatch dispatch-n]
+  (cond
+    dispatch-n (if (some? dispatch)
+                 (re-frame/console :error
+                                   "re-frame-rules: can only specify one of :dispatch and :dispatch-n.")
+                 dispatch-n)
+    dispatch [dispatch]
+    :else []))
+
 (defn massage-rule [flow-id index {:keys [id when events
                                           dispatch dispatch-n
                                           unbind?]
@@ -78,14 +87,7 @@
    ::events (if (coll? events)
               (set events)
               #{events})
-   ::dispatch-n (cond
-                  dispatch-n (if dispatch
-                               (re-frame/console :error
-                                                 "async-flow: rule can only specify one of :dispatch and :dispatch-n. Got both: "
-                                                 rule)
-                               dispatch-n)
-                  dispatch [dispatch]
-                  :else [])})
+   ::dispatch-n (get-dispatch-n dispatch dispatch-n)})
 
 (defn massage-rules
   "Massage the supplied rules as follows:
@@ -97,7 +99,7 @@
 
 (defn make-flow-event-handler
   "Given a flow definition, returns an event handler which implements this definition"
-  [{:keys [id rules first-dispatch]}]
+  [{:keys [id rules first-dispatch first-dispatch-n]}]
   (let [rules (massage-rules id rules)] ;; all of the events refered to in the rules
     ;; Return an event handler which will manage the flow.
     ;; This event handler will receive 3 kinds of events:
@@ -110,7 +112,7 @@
       (condp = event-type
         ;; Setup this flow coordinator:
         ;; 1. Arrange for the events to be forwarded to this handler
-        ::setup {:dispatch first-dispatch ; TODO: first-dispatch-n
+        ::setup {:dispatch-n (get-dispatch-n first-dispatch first-dispatch-n)
                  ::forward-events {::register id
                                    ::events (->> (map ::events rules)
                                                  (apply clojure.set/union))
