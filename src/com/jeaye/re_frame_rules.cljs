@@ -21,7 +21,7 @@
                            {:callback-pred callback-pred})))))
 
 (defn process-event [{:as m
-                      :keys [unregister register events dispatch-to]}]
+                      :keys [::unregister ::register ::events ::dispatch-to]}]
   (let [_ (assert (map? m)
                   (str "re-frame: effects handler for :forward-events expected a map or a list of maps. Got: " m))
         _ (assert (or (= #{::unregister} (-> m keys set))
@@ -50,14 +50,13 @@
 (defn seen-any?
   [required-events seen-event]
   (let [callback-preds (map event->callback-pred required-events)]
-    (->> (some (fn [pred] (pred seen-event))
-               callback-preds)
+    (->> (some (fn [pred] (pred seen-event)) callback-preds)
          some?)))
 
 (defn match-rules
   [rules seen-event]
-  (filterv (fn [task]
-             ((::when task) (::events task) seen-event))
+  (filterv (fn [rule]
+             ((::when rule) (::events rule) seen-event))
            rules))
 
 (def map-when->fn {:seen? seen-any?
@@ -98,7 +97,7 @@
 
 (defn make-flow-event-handler
   "Given a flow definition, returns an event handler which implements this definition"
-  [{:keys [id rules]}]
+  [{:keys [id rules first-dispatch]}]
   (let [rules (massage-rules id rules)] ;; all of the events refered to in the rules
     ;; Return an event handler which will manage the flow.
     ;; This event handler will receive 3 kinds of events:
@@ -111,10 +110,11 @@
       (condp = event-type
         ;; Setup this flow coordinator:
         ;; 1. Arrange for the events to be forwarded to this handler
-        ::setup {:forward-events {::register id
-                                  ::events (->> (map ::events rules)
-                                                (apply clojure.set/union))
-                                  ::dispatch-to [id]}}
+        ::setup {:dispatch first-dispatch ; TODO: first-dispatch-n
+                 ::forward-events {::register id
+                                   ::events (->> (map ::events rules)
+                                                 (apply clojure.set/union))
+                                   ::dispatch-to [id]}}
 
         ;; Here we are managing the flow.
         ;; A new event has been forwarded, so work out what should happen:
@@ -125,7 +125,7 @@
               new-dispatches (mapcat ::dispatch-n matched-rules)]
           (merge {}
                  (when (seq new-dispatches)
-                   (println "dispatching" new-dispatches)
+                   (println "rules dispatching" new-dispatches)
                    {:dispatch-n new-dispatches})
                  (when unbind?
                    ;; Teardown this flow coordinator:
@@ -149,4 +149,4 @@
   (fn [flow]
     (let [[id flow'] (ensure-has-id flow)]
       (re-frame/reg-event-fx id (make-flow-event-handler flow'))
-      (re-frame/dispatch [id :setup]))))
+      (re-frame/dispatch [id ::setup]))))
