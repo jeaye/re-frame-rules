@@ -23,10 +23,10 @@
 (defn process-event [{:as m
                       :keys [::unregister ::register ::events ::dispatch-to]}]
   (let [_ (assert (map? m)
-                  (str "re-frame: effects handler for :forward-events expected a map or a list of maps. Got: " m))
+                  (str "re-frame-rules: effects handler for :forward-events expected a map or a list of maps. Got: " m))
         _ (assert (or (= #{::unregister} (-> m keys set))
                       (= #{::register ::events ::dispatch-to} (-> m keys set)))
-                  (str "re-frame: effects handler for :forward-events given wrong map keys" (-> m keys set)))]
+                  (str "re-frame-rules: effects handler for :forward-events given wrong map keys" (-> m keys set)))]
     (if unregister
       (re-frame/remove-post-event-callback unregister)
       (let [events-preds (map event->callback-pred events)
