@@ -2,6 +2,8 @@
   (:require [re-frame.core :as re-frame]
             [clojure.set]))
 
+; TODO: allow {:stub [::foo ::bar]} to generate stubs
+
 (defn event->callback-pred
   "Looks at the required-events items and returns a predicate which
    will either
