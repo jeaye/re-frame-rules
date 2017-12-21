@@ -11,11 +11,14 @@
    - match the entire event vector if a collection is supplied
    - returns a callback-pred if it is a fn"
   [callback-pred]
+  ;(println "build pred for" callback-pred)
   (when callback-pred
     (cond (fn? callback-pred) callback-pred
           (keyword? callback-pred) (fn [[event-id _]]
+                                     ;(println "pred " callback-pred event-id)
                                      (= callback-pred event-id))
           (coll? callback-pred) (fn [event-v]
+                                  ;(println "coll pred " callback-pred event-v)
                                   (= callback-pred event-v))
           :else (throw
                   (ex-info (str (pr-str callback-pred)
@@ -24,6 +27,7 @@
 
 (defn process-event [{:as m
                       :keys [::unregister ::register ::events ::dispatch-to]}]
+  ;(println "process events" m)
   (let [_ (assert (map? m)
                   (str "re-frame-rules: effects handler for :forward-events expected a map or a list of maps. Got: " m))
         _ (assert (or (= #{::unregister} (-> m keys set))
@@ -33,8 +37,10 @@
       (re-frame/remove-post-event-callback unregister)
       (let [events-preds (map event->callback-pred events)
             post-event-callback-fn (fn [event-v _]
+                                     ;(println "post-callback for" event-v)
                                      (when (some (fn [pred] (pred event-v))
                                                  events-preds)
+                                       ;(println "dispatching" (conj dispatch-to event-v))
                                        (re-frame/dispatch (conj dispatch-to event-v))))]
         (re-frame/add-post-event-callback register post-event-callback-fn)))))
 
@@ -58,6 +64,7 @@
 (defn match-rules
   [rules seen-event]
   (filterv (fn [rule]
+             ;(println "matching rule" [seen-event ((::when rule) (::events rule) seen-event)])
              ((::when rule) (::events rule) seen-event))
            rules))
 
@@ -97,11 +104,14 @@
    - ensure that only `:dispatch` or `:dispatch-n` is provided
    - add a unique :id, if one not already present"
   [flow-id rules]
+  ;(println "massaging rules" rules)
+  ;(println "massaged" (map-indexed #(massage-rule flow-id %1 %2) rules))
   (map-indexed #(massage-rule flow-id %1 %2) rules))
 
 (defn make-rules-event-handler
   "Given a flow definition, returns an event handler which implements this definition"
-  [{:keys [id rules first-dispatch first-dispatch-n]}]
+  [{:keys [id rules first-dispatch first-dispatch-n] :as m}]
+  ;(println "full rules" m)
   (let [rules (massage-rules id rules)] ;; all of the events refered to in the rules
     ;; Return an event handler which will manage the flow.
     ;; This event handler will receive 3 kinds of events:
@@ -132,6 +142,7 @@
                    (println "rules dispatching" new-dispatches)
                    {:dispatch-n new-dispatches})
                  (when unbind?
+                   ;(println "unbinding" id)
                    ;; Teardown this flow coordinator:
                    ;; 1. Remove this event handler
                    ;; 2. Deregister the events forwarder
