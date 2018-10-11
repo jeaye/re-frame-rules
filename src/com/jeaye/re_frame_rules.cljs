@@ -52,7 +52,7 @@
       (sequential? val) (doseq [v val]
                           (process-event v))
       :else (re-frame/console :error
-                              "::forward-events expected a map or a list of maps, but got: "
+                              "re-frame-rules: ::forward-events expected a map or a list of maps, but got: "
                               val))))
 
 (defn seen-any?
@@ -87,16 +87,18 @@
     :else []))
 
 (defn massage-rule [flow-id index {:keys [id when events
-                                          dispatch dispatch-n
+                                          dispatch dispatch-n dispatch-fn
                                           unbind?]
                                    :as rule}]
-  {::id (or id (str flow-id "#" index))
-   ::unbind? (or unbind? false)
-   ::when (when->fn when)
-   ::events (if (coll? events)
-              (set events)
-              #{events})
-   ::dispatch-n (get-dispatch-n dispatch dispatch-n)})
+  (merge {::id (or id (str flow-id "#" index))
+          ::unbind? (or unbind? false)
+          ::when (when->fn when)
+          ::events (if (coll? events)
+                     (set events)
+                     #{events})}
+         (if (some? dispatch-fn)
+           {::dispatch-fn dispatch-fn}
+           {::dispatch-n (get-dispatch-n dispatch dispatch-n)})))
 
 (defn massage-rules
   "Massage the supplied rules as follows:
@@ -107,6 +109,22 @@
   ;(println "massaging rules" rules)
   ;(println "massaged" (map-indexed #(massage-rule flow-id %1 %2) rules))
   (map-indexed #(massage-rule flow-id %1 %2) rules))
+
+(defn rules->dispatches
+  "Given an rule and event, return a sequence of dispatches. For each dispatch in the rule:
+   - if the dispatch is a keyword, return it as is
+   - if the dispatch is a function, call the function with the event"
+  [rules event]
+  (mapcat (fn [rule]
+            (let [{:keys [::dispatch-fn ::dispatch-n]} rule]
+              (cond
+                (some? dispatch-n) dispatch-n
+                (some? dispatch-fn) (let [dispatch-n (dispatch-fn event)]
+                                      (if (every? vector? dispatch-n)
+                                        dispatch-n
+                                        (re-frame/console :error "re-frame-rules: dispatch-fn must return a seq of events " rule)))
+                :else [])))
+          rules))
 
 (defn make-rules-event-handler
   "Given a flow definition, returns an event handler which implements this definition"
@@ -136,7 +154,7 @@
         (let [[_ forwarded-event] event-v
               matched-rules (match-rules rules forwarded-event)
               unbind? (some ::unbind? matched-rules)
-              new-dispatches (mapcat ::dispatch-n matched-rules)]
+              new-dispatches (rules->dispatches matched-rules forwarded-event)]
           (merge {}
                  (when (seq new-dispatches)
                    (println "rules dispatching" new-dispatches)
